@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, User, GraduationCap } from 'lucide-react';
 import { auth, db } from '../../firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 
 const LoginForm = () => {
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [selectedRole, setSelectedRole] = useState('teacher'); // 'teacher' or 'student'
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,15 +19,18 @@ const LoginForm = () => {
         loginForm.password
       );
       
+      // 사용자 정보에 role 포함하여 저장
       await setDoc(doc(db, 'users', userCredential.user.uid), {
         email: loginForm.email,
+        role: selectedRole,
         students: [],
         createdAt: new Date().toISOString()
       });
 
-      alert('회원가입이 완료되었습니다!');
+      alert(`${selectedRole === 'teacher' ? '선생님' : '학생'} 계정으로 회원가입이 완료되었습니다!`);
       setIsRegistering(false);
       setLoginForm({ email: '', password: '' });
+      setSelectedRole('teacher');
     } catch (err) {
       if (err.code === 'auth/email-already-in-use') {
         setError('이미 사용 중인 이메일입니다.');
@@ -62,6 +66,37 @@ const LoginForm = () => {
         </div>
         
         <div className="space-y-4">
+          {/* 회원가입 시 역할 선택 */}
+          {isRegistering && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">계정 유형</label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setSelectedRole('teacher')}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                    selectedRole === 'teacher'
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  <User className="w-5 h-5" />
+                  <span className="font-medium">선생님</span>
+                </button>
+                <button
+                  onClick={() => setSelectedRole('student')}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 transition-all ${
+                    selectedRole === 'student'
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  <GraduationCap className="w-5 h-5" />
+                  <span className="font-medium">학생</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
             <input
@@ -98,6 +133,7 @@ const LoginForm = () => {
             onClick={() => {
               setIsRegistering(!isRegistering);
               setError('');
+              setSelectedRole('teacher');
             }}
             className="w-full text-indigo-600 hover:text-indigo-700 text-sm"
           >

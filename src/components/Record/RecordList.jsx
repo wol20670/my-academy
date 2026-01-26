@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Edit2, Trash2, Save, X } from 'lucide-react';
 
-const RecordList = ({ records, onUpdateRecord, onDeleteRecord }) => {
+const RecordList = ({ records, onUpdateRecord, onDeleteRecord, isTeacher = true }) => {
   const [editingRecord, setEditingRecord] = useState(null);
 
   const handleUpdate = () => {
-    onUpdateRecord(editingRecord);
-    setEditingRecord(null);
+    if (onUpdateRecord) {
+      onUpdateRecord(editingRecord);
+      setEditingRecord(null);
+    }
   };
 
   const sortedRecords = [...records].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -19,7 +21,7 @@ const RecordList = ({ records, onUpdateRecord, onDeleteRecord }) => {
       ) : (
         sortedRecords.map(record => (
           <div key={record.id} className="border rounded-lg p-4 hover:bg-gray-50">
-            {editingRecord?.id === record.id ? (
+            {editingRecord?.id === record.id && isTeacher ? (
               <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
                   <input
@@ -78,20 +80,27 @@ const RecordList = ({ records, onUpdateRecord, onDeleteRecord }) => {
                   </div>
                   {record.comment && <p className="text-gray-700">{record.comment}</p>}
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditingRecord(record)}
-                    className="text-blue-600 hover:text-blue-700 p-1"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => onDeleteRecord(record.id)}
-                    className="text-red-600 hover:text-red-700 p-1"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                {/* 선생님만 수정/삭제 버튼 표시 */}
+                {isTeacher && (
+                  <div className="flex gap-2">
+                    {onUpdateRecord && (
+                      <button
+                        onClick={() => setEditingRecord(record)}
+                        className="text-blue-600 hover:text-blue-700 p-1"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    {onDeleteRecord && (
+                      <button
+                        onClick={() => onDeleteRecord(record.id)}
+                        className="text-red-600 hover:text-red-700 p-1"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

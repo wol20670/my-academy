@@ -16,6 +16,7 @@ import { calculateAverage } from './utils/calculations';
 
 function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [userRole, setUserRole] = useState(null); // 'teacher' or 'student'
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -34,13 +35,16 @@ function App() {
   useEffect(() => {
     if (!currentUser) {
       setStudents([]);
+      setUserRole(null);
       return;
     }
 
     const userDocRef = doc(db, 'users', currentUser.uid);
     const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
       if (docSnap.exists()) {
-        setStudents(docSnap.data().students || []);
+        const userData = docSnap.data();
+        setStudents(userData.students || []);
+        setUserRole(userData.role || 'teacher'); // role 정보 저장
       }
     });
 
@@ -52,6 +56,7 @@ function App() {
     try {
       await signOut(auth);
       setSelectedStudent(null);
+      setUserRole(null);
     } catch (err) {
       console.error('로그아웃 오류:', err);
     }
@@ -160,7 +165,12 @@ function App() {
             <BookOpen className="w-8 h-8 text-indigo-600" />
             <div>
               <h1 className="text-2xl font-bold text-gray-800">학생 학업 관리</h1>
-              <p className="text-sm text-gray-600">{currentUser.email}</p>
+              <p className="text-sm text-gray-600">
+                {currentUser.email} 
+                <span className="ml-2 px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded text-xs font-medium">
+                  {userRole === 'teacher' ? '선생님' : '학생'}
+                </span>
+              </p>
             </div>
           </div>
           <button
@@ -177,14 +187,28 @@ function App() {
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* 왼쪽: 학생 목록 */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
-            <StudentForm onAddStudent={handleAddStudent} />
-          </div>
+          {/* 선생님만 학생 추가 폼 표시 */}
+          {userRole === 'teacher' && (
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
+              <StudentForm onAddStudent={handleAddStudent} />
+            </div>
+          )}
+          
+          {/* 학생 역할일 때 안내 메시지 */}
+          {userRole === 'student' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-blue-800">
+                👋 학생 모드입니다. 선생님이 등록한 나의 성적을 확인할 수 있습니다.
+              </p>
+            </div>
+          )}
+
           <StudentList
             students={students}
             selectedStudent={selectedStudent}
             onSelectStudent={setSelectedStudent}
-            onDeleteStudent={handleDeleteStudent}
+            onDeleteStudent={userRole === 'teacher' ? handleDeleteStudent : null}
+            isTeacher={userRole === 'teacher'}
           />
         </div>
 
@@ -240,17 +264,21 @@ function App() {
               {/* 탭 컨텐츠 */}
               {activeTab === 'records' ? (
                 <>
-                  <RecordForm onAddRecord={handleAddRecord} />
+                  {/* 선생님만 기록 추가 가능 */}
+                  {userRole === 'teacher' && <RecordForm onAddRecord={handleAddRecord} />}
+                  
                   <RecordList
                     records={selectedStudent.records}
-                    onUpdateRecord={handleUpdateRecord}
-                    onDeleteRecord={handleDeleteRecord}
+                    onUpdateRecord={userRole === 'teacher' ? handleUpdateRecord : null}
+                    onDeleteRecord={userRole === 'teacher' ? handleDeleteRecord : null}
+                    isTeacher={userRole === 'teacher'}
                   />
                 </>
               ) : (
                 <div className="space-y-8">
                   <SubjectChartAnalysis student={selectedStudent} />
-                  <BarChartAnalysis students={students} />
+                  {/* 선생님만 전체 학생 비교 차트 표시 */}
+                  {userRole === 'teacher' && <BarChartAnalysis students={students} />}
                 </div>
               )}
             </>
