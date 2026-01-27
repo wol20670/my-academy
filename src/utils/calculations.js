@@ -1,19 +1,22 @@
 // 평균 계산
-export const calculateAverage = (records) => {
-  const scores = records.filter(r => r.score).map(r => parseFloat(r.score));
+export const calculateAverage = (records = []) => {
+  const safeRecords = Array.isArray(records) ? records : [];
+  const scores = safeRecords.filter(r => r.score).map(r => parseFloat(r.score));
   if (scores.length === 0) return '-';
   return (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
 };
 
 // 과목별 성적 변화 데이터 생성 (꺾은선 그래프용)
 export const getSubjectTrendData = (student) => {
-  if (!student || !student.records.length) return [];
+  if (!student) return [];
+  const records = Array.isArray(student.records) ? student.records : [];
+  if (records.length === 0) return [];
 
-  const subjects = [...new Set(student.records.map(r => r.subject))];
+  const subjects = [...new Set(records.map(r => r.subject))];
   const recordsBySubject = {};
   
   subjects.forEach(subject => {
-    recordsBySubject[subject] = student.records
+    recordsBySubject[subject] = records
       .filter(r => r.subject === subject && r.score)
       .sort((a, b) => new Date(a.date) - new Date(b.date))
       .map(r => ({
@@ -22,7 +25,7 @@ export const getSubjectTrendData = (student) => {
       }));
   });
 
-  const allDates = [...new Set(student.records.filter(r => r.score).map(r => r.date))].sort();
+  const allDates = [...new Set(records.filter(r => r.score).map(r => r.date))].sort();
   
   return allDates.map(date => {
     const dataPoint = { date };
@@ -37,14 +40,21 @@ export const getSubjectTrendData = (student) => {
 };
 
 // 전체 학생 평균 비교 데이터 (막대 그래프용)
-export const getStudentsComparisonData = (students) => {
-  return students
-    .filter(s => s.records.length > 0)
-    .map(student => ({
-      name: student.name,
-      average: parseFloat(calculateAverage(student.records)),
-      recordCount: student.records.length
-    }))
+export const getStudentsComparisonData = (students = []) => {
+  const safeStudents = Array.isArray(students) ? students : [];
+  return safeStudents
+    .filter(s => {
+      const records = Array.isArray(s.records) ? s.records : [];
+      return records.length > 0;
+    })
+    .map(student => {
+      const records = Array.isArray(student.records) ? student.records : [];
+      return {
+        name: student.name,
+        average: parseFloat(calculateAverage(records)),
+        recordCount: records.length
+      };
+    })
     .sort((a, b) => b.average - a.average);
 };
 

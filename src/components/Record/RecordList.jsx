@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Edit2, Trash2, Save, X } from 'lucide-react';
 
-const RecordList = ({ records, onUpdateRecord, onDeleteRecord, isTeacher = true }) => {
+const RecordList = ({ records = [], onUpdateRecord, onDeleteRecord, isTeacher = true }) => {
   const [editingRecord, setEditingRecord] = useState(null);
 
   const handleUpdate = () => {
@@ -11,12 +11,14 @@ const RecordList = ({ records, onUpdateRecord, onDeleteRecord, isTeacher = true 
     }
   };
 
-  const sortedRecords = [...records].sort((a, b) => new Date(b.date) - new Date(a.date));
+  // 안전하게 배열 처리
+  const safeRecords = Array.isArray(records) ? records : [];
+  const sortedRecords = [...safeRecords].sort((a, b) => new Date(b.date) - new Date(a.date));
 
   return (
     <div className="space-y-3">
       <h3 className="font-semibold text-gray-800">학업 기록</h3>
-      {records.length === 0 ? (
+      {safeRecords.length === 0 ? (
         <p className="text-gray-500 text-center py-8">아직 기록이 없습니다.</p>
       ) : (
         sortedRecords.map(record => (

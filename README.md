@@ -1,172 +1,284 @@
-# React + Vite
+# Firebase 데이터 구조 및 보안 규칙 가이드
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## 📊 새로운 데이터 구조
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-
-
-# 학생 학업 관리 시스템
-
-학생들의 학업 성취를 체계적으로 관리하는 웹 애플리케이션입니다.
-
-## 🚀 시작하기
-
-### 1. 프로젝트 클론
-
-```bash
-git clone [your-repository-url]
-cd student-management
-```
-
-### 2. 의존성 설치
-
-```bash
-npm install
-```
-
-### 3. Firebase 설정
-
-#### 3.1 Firebase 프로젝트 생성
-
-1. [Firebase Console](https://console.firebase.google.com/) 접속
-2. "프로젝트 추가" 클릭
-3. 프로젝트 이름 입력 후 생성
-
-#### 3.2 Firebase 설정 값 가져오기
-
-1. Firebase Console에서 프로젝트 선택
-2. 프로젝트 설정 (톱니바퀴 아이콘) → "프로젝트 설정"
-3. "내 앱" 섹션에서 웹 앱 추가 (`</>` 아이콘)
-4. 앱 닉네임 입력 후 "앱 등록"
-5. **Firebase SDK 구성** 정보 복사
-
-#### 3.3 Authentication 활성화
-
-1. 왼쪽 메뉴에서 **Authentication** 클릭
-2. "시작하기" 버튼 클릭
-3. "이메일/비밀번호" 활성화
-
-#### 3.4 Firestore Database 생성
-
-1. 왼쪽 메뉴에서 **Firestore Database** 클릭
-2. "데이터베이스 만들기" 클릭
-3. **테스트 모드로 시작** 선택 (나중에 보안 규칙 설정 가능)
-4. 위치 선택 후 "완료"
-
-### 4. 환경 변수 설정
-
-#### 4.1 .env 파일 생성
-
-프로젝트 **루트 폴더**에 `.env` 파일을 만드세요:
-
-```bash
-# 프로젝트 루트에서
-touch .env
-```
-
-#### 4.2 Firebase 설정 값 입력
-
-`.env` 파일을 열고 Firebase Console에서 복사한 값을 붙여넣으세요:
-
-```env
-VITE_FIREBASE_API_KEY=your-actual-api-key-here
-VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=123456789012
-VITE_FIREBASE_APP_ID=1:123456789012:web:abcdef1234567890
-```
-
-**⚠️ 주의사항:**
-- `.env` 파일은 절대 깃허브에 올리면 안 됩니다! (`.gitignore`에 이미 추가되어 있음)
-- 모든 환경 변수는 `VITE_` 접두사로 시작해야 합니다.
-- 값에 따옴표(`""`)는 넣지 마세요.
-
-### 5. 앱 실행
-
-```bash
-npm run dev
-```
-
-브라우저에서 `http://localhost:5173` 접속
-
-## 📁 프로젝트 구조
+### Firestore 컬렉션 구조
 
 ```
-src/
-├── firebase.js              # Firebase 설정 (환경 변수 사용)
-├── App.js                   # 메인 앱 컴포넌트
-├── components/
-│   ├── Auth/
-│   │   └── LoginForm.js
-│   ├── Student/
-│   │   ├── StudentList.js
-│   │   └── StudentForm.js
-│   ├── Record/
-│   │   ├── RecordList.js
-│   │   └── RecordForm.js
-│   └── Analysis/
-│       ├── SubjectBarChartAnalysis.jsx
-│       └── BarChartAnalysis.js
-└── utils/
-    └── calculations.js
+Firestore Database
+│
+├── users/                              # 사용자 정보
+│   └── {userId} (Auto-generated)
+│       ├── id: "teacher"              # 영어 아이디
+│       ├── email: "teacher@my-academy.com"
+│       ├── role: "teacher" | "student"
+│       └── createdAt: timestamp
+│
+├── students/                           # 학생 정보 (독립 컬렉션)
+│   └── {studentDocId} (Auto-generated)
+│       ├── studentId: "minsu"         # 영어 아이디 (매칭 키)
+│       ├── name: "김민수"
+│       ├── grade: "3학년 2반"
+│       ├── memo: "수학 특기"
+│       ├── email: "minsu@my-academy.com"
+│       ├── teacherId: "teacher@my-academy.com"  # 등록한 선생님
+│       └── createdAt: timestamp
+│
+└── records/                            # 성적 기록 (독립 컬렉션)
+    └── {recordId} (Auto-generated)
+        ├── studentId: "minsu"         # 학생 아이디 (매칭 키)
+        ├── teacherId: "teacher@my-academy.com"  # 등록한 선생님
+        ├── subject: "수학"
+        ├── score: 95
+        ├── date: "2024-01-27"
+        ├── comment: "잘했어요"
+        └── createdAt: timestamp
 ```
 
-## 🔒 보안 설정 (선택사항)
+---
 
-Firestore 보안 규칙을 설정하여 사용자별 데이터 접근을 제한할 수 있습니다.
+## 🔐 보안 규칙 설정
 
-Firebase Console → Firestore Database → 규칙 탭:
+### Firebase Console에서 설정하기
+
+1. Firebase Console → Firestore Database → 규칙 탭
+2. 아래 규칙을 붙여넣고 "게시" 클릭
 
 ```javascript
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // 사용자 컬렉션
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false;
+    }
+    
+    // 학생 컬렉션
+    match /students/{studentId} {
+      allow read: if request.auth != null && (
+        resource.data.teacherId == request.auth.token.email ||
+        resource.data.studentId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.id
+      );
+      
+      allow create: if request.auth != null && 
+        request.resource.data.teacherId == request.auth.token.email &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+      
+      allow update, delete: if request.auth != null && 
+        resource.data.teacherId == request.auth.token.email &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+    
+    // 성적 기록 컬렉션
+    match /records/{recordId} {
+      allow read: if request.auth != null && (
+        resource.data.teacherId == request.auth.token.email ||
+        resource.data.studentId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.id
+      );
+      
+      allow create, update, delete: if request.auth != null && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+    
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
 ```
 
-## 🛠️ 기술 스택
+---
 
-- React 18
-- Firebase (Authentication, Firestore)
-- Recharts (데이터 시각화)
-- Tailwind CSS
-- Lucide React (아이콘)
-- Vite
+## 🎯 주요 변경 사항
 
-## ❓ 문제 해결
+### Before (이전 구조)
+```javascript
+users/
+└── {userId}/
+    └── students: [array]  // 학생 데이터가 배열로 저장
+        └── records: [array]  // 성적이 중첩 배열로 저장
+```
 
-### 환경 변수가 인식되지 않을 때
+**문제점:**
+- 데이터 중복 및 비효율적인 쿼리
+- 보안 규칙 설정 어려움
+- 확장성 부족
 
-1. `.env` 파일이 **프로젝트 루트 폴더**에 있는지 확인
-2. 모든 변수명이 `VITE_`로 시작하는지 확인
-3. 개발 서버를 재시작 (`Ctrl+C` 후 `npm run dev`)
+### After (현재 구조)
+```javascript
+users/ - 사용자 정보만
+students/ - 학생 정보 (독립)
+records/ - 성적 기록 (독립)
+```
 
-### Firebase 연결 오류
+**장점:**
+- ✅ 데이터 정규화 및 효율적인 쿼리
+- ✅ 세밀한 보안 규칙 적용
+- ✅ 확장성 우수
+- ✅ 여러 선생님이 같은 학생 데이터 공유 가능 (미래 확장)
 
-1. Firebase Console에서 Authentication과 Firestore가 활성화되어 있는지 확인
-2. `.env` 파일의 값이 정확한지 확인 (공백, 따옴표 없이)
-3. 브라우저 콘솔에서 오류 메시지 확인
+---
 
-## 📝 라이선스
+## 🔄 데이터 흐름
 
-MIT License
+### 선생님 로그인 시
 
-## 👥 기여
+1. **사용자 정보 확인**
+   ```javascript
+   users/{teacherId} → role: "teacher"
+   ```
 
-이슈나 PR을 자유롭게 제출해주세요!
+2. **학생 목록 조회**
+   ```javascript
+   students 컬렉션에서
+   where teacherId == "teacher@my-academy.com"
+   ```
+
+3. **성적 기록 조회**
+   ```javascript
+   records 컬렉션에서
+   where teacherId == "teacher@my-academy.com"
+   ```
+
+4. **데이터 그룹화**
+   ```javascript
+   학생별로 성적 기록을 그룹화하여 표시
+   ```
+
+### 학생 로그인 시
+
+1. **사용자 정보 확인**
+   ```javascript
+   users/{studentUserId} → id: "minsu", role: "student"
+   ```
+
+2. **자신의 학생 정보 조회**
+   ```javascript
+   students 컬렉션에서
+   where studentId == "minsu"
+   ```
+
+3. **자신의 성적 조회**
+   ```javascript
+   records 컬렉션에서
+   where studentId == "minsu"
+   ```
+
+---
+
+## 📝 보안 규칙 설명
+
+### 1. 사용자 컬렉션 (users)
+- **읽기/쓰기**: 본인만 가능
+- **삭제**: 불가능 (데이터 보호)
+
+### 2. 학생 컬렉션 (students)
+- **읽기**: 
+  - 등록한 선생님
+  - 해당 학생 본인
+- **쓰기**: 
+  - 선생님만 가능 (생성/수정/삭제)
+  - teacherId가 본인 이메일과 일치해야 함
+
+### 3. 성적 컬렉션 (records)
+- **읽기**: 
+  - 등록한 선생님
+  - 해당 학생 본인
+- **쓰기**: 
+  - 선생님만 가능
+  - teacherId가 본인 이메일과 일치해야 함
+
+---
+
+## 🧪 테스트 시나리오
+
+### ✅ 허용되는 작업
+
+**선생님 (teacher@my-academy.com):**
+- ✅ 학생 "minsu" 추가
+- ✅ "minsu"의 성적 추가/수정/삭제
+- ✅ 자신이 등록한 모든 학생 조회
+- ✅ 자신이 등록한 모든 성적 조회
+
+**학생 (minsu):**
+- ✅ 자신의 정보 조회
+- ✅ 자신의 성적 조회
+- ✅ 성적 분석 차트 보기
+
+### ❌ 차단되는 작업
+
+**학생 (minsu):**
+- ❌ 다른 학생 정보 조회
+- ❌ 자신의 성적 수정/삭제
+- ❌ 새 성적 추가
+
+**선생님 A:**
+- ❌ 선생님 B가 등록한 학생 수정/삭제
+- ❌ 선생님 B가 등록한 성적 수정/삭제
+
+---
+
+## 🔧 문제 해결
+
+### "권한 거부" 오류가 발생하면?
+
+1. **보안 규칙이 올바르게 적용되었는지 확인**
+   - Firebase Console → Firestore → 규칙 탭
+
+2. **사용자 role이 올바르게 설정되었는지 확인**
+   - Firestore → users → 해당 문서 확인
+   - `role` 필드가 "teacher" 또는 "student"인지 확인
+
+3. **teacherId와 studentId가 정확한지 확인**
+   - students 문서: `teacherId` = 선생님 이메일
+   - records 문서: `teacherId` + `studentId` 모두 정확해야 함
+
+4. **브라우저 캐시 지우기 및 재로그인**
+
+### 데이터가 표시되지 않으면?
+
+1. **콘솔에서 데이터 구조 확인**
+   ```javascript
+   console.log('Students:', students);
+   console.log('Records:', records);
+   ```
+
+2. **Firestore Console에서 직접 확인**
+   - students 컬렉션에 데이터가 있는지
+   - records 컬렉션에 데이터가 있는지
+   - teacherId와 studentId가 정확히 일치하는지
+
+---
+
+## 📌 중요 체크리스트
+
+- [ ] Firebase Console에서 보안 규칙 업데이트 완료
+- [ ] 기존 데이터가 있다면 새 구조로 마이그레이션 필요
+- [ ] 각 컬렉션에 인덱스 설정 (선택사항, 쿼리 성능 향상)
+- [ ] teacherId와 studentId 필드가 정확히 입력되었는지 확인
+
+---
+
+## 🚀 성능 최적화 팁
+
+### Firestore 인덱스 생성 (선택사항)
+
+성능 향상을 위해 다음 인덱스를 생성하세요:
+
+**students 컬렉션:**
+- `teacherId` (Ascending)
+
+**records 컬렉션:**
+- `teacherId` (Ascending)
+- `studentId` (Ascending)
+- `teacherId` + `studentId` (Composite)
+
+Firebase Console → Firestore → 인덱스 탭에서 자동으로 제안됩니다.
+
+---
+
+이 새로운 구조로 보안과 확장성이 크게 개선되었습니다! 🎉

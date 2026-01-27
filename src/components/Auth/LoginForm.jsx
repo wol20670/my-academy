@@ -3,37 +3,46 @@ import { BookOpen, User, GraduationCap } from 'lucide-react';
 import { auth, db } from '../../firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import { toEmail, isValidId } from '../../utils/authHelper';
 
 const LoginForm = () => {
-  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
-  const [selectedRole, setSelectedRole] = useState('teacher'); // 'teacher' or 'student'
+  const [loginForm, setLoginForm] = useState({ id: '', password: '' });
+  const [selectedRole, setSelectedRole] = useState('teacher');
   const [isRegistering, setIsRegistering] = useState(false);
   const [error, setError] = useState('');
 
   const handleRegister = async () => {
     try {
       setError('');
+
+      if (!isValidId(loginForm.id)) {
+        setError('아이디는 영어 소문자와 숫자만 사용 가능합니다 (3-20자)');
+        return;
+      }
+
+      const email = toEmail(loginForm.id);
+      
       const userCredential = await createUserWithEmailAndPassword(
         auth, 
-        loginForm.email, 
+        email, 
         loginForm.password
       );
       
-      // 사용자 정보에 role 포함하여 저장
       await setDoc(doc(db, 'users', userCredential.user.uid), {
-        email: loginForm.email,
+        id: loginForm.id,
+        email: email,
         role: selectedRole,
         students: [],
         createdAt: new Date().toISOString()
       });
 
-      alert(`${selectedRole === 'teacher' ? '선생님' : '학생'} 계정으로 회원가입이 완료되었습니다!`);
+      alert(`${selectedRole === 'teacher' ? '선생님' : '학생'} 계정 회원가입 완료!`);
       setIsRegistering(false);
-      setLoginForm({ email: '', password: '' });
+      setLoginForm({ id: '', password: '' });
       setSelectedRole('teacher');
     } catch (err) {
       if (err.code === 'auth/email-already-in-use') {
-        setError('이미 사용 중인 이메일입니다.');
+        setError('이미 사용 중인 아이디입니다.');
       } else if (err.code === 'auth/weak-password') {
         setError('비밀번호는 최소 6자 이상이어야 합니다.');
       } else {
@@ -45,11 +54,18 @@ const LoginForm = () => {
   const handleLogin = async () => {
     try {
       setError('');
-      await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password);
-      setLoginForm({ email: '', password: '' });
+      
+      if (!isValidId(loginForm.id)) {
+        setError('올바른 아이디 형식이 아닙니다.');
+        return;
+      }
+
+      const email = toEmail(loginForm.id);
+      await signInWithEmailAndPassword(auth, email, loginForm.password);
+      setLoginForm({ id: '', password: '' });
     } catch (err) {
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('아이디 또는 비밀번호가 올바르지 않습니다.');
       } else {
         setError('로그인 실패: ' + err.message);
       }
@@ -66,7 +82,6 @@ const LoginForm = () => {
         </div>
         
         <div className="space-y-4">
-          {/* 회원가입 시 역할 선택 */}
           {isRegistering && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">계정 유형</label>
@@ -98,15 +113,22 @@ const LoginForm = () => {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
-            <input
-              type="email"
-              value={loginForm.email}
-              onChange={(e) => setLoginForm({...loginForm, email: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              placeholder="email@example.com"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">아이디</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={loginForm.id}
+                onChange={(e) => setLoginForm({...loginForm, id: e.target.value.toLowerCase()})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent pr-40"
+                placeholder="teacher"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">
+                @my-academy.com
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">영어 소문자와 숫자만 사용 (3-20자)</p>
           </div>
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">비밀번호</label>
             <input
@@ -122,13 +144,16 @@ const LoginForm = () => {
               placeholder="최소 6자 이상"
             />
           </div>
+          
           {error && <p className="text-red-600 text-sm">{error}</p>}
+          
           <button
             onClick={isRegistering ? handleRegister : handleLogin}
             className="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition-colors font-medium"
           >
             {isRegistering ? '회원가입' : '로그인'}
           </button>
+          
           <button
             onClick={() => {
               setIsRegistering(!isRegistering);
