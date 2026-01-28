@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BookOpen, TrendingUp, BarChart3 } from 'lucide-react';
+import { BookOpen, TrendingUp, BarChart3, ClipboardList } from 'lucide-react';
 import { auth, db } from './firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -11,6 +11,10 @@ import {
   subscribeToRecordsByTeacher,
   subscribeToRecordsByStudent
 } from './services/firebaseService';
+import {
+  subscribeToAssignmentsByTeacher,
+  subscribeToAssignmentsByStudent
+} from './services/assignmentService';
 
 // Utils
 import {
@@ -33,6 +37,9 @@ import AnalysisDashboard from './components/Analysis/AnalysisDashboard';
 import BarChartAnalysis from './components/Analysis/BarChartAnalysis';
 import LoadingSpinner from './components/Common/LoadingSpinner';
 import Header from './components/Common/Header';
+import AssignmentForm from './components/Assignment/AssignmentForm';
+import AssignmentListTeacher from './components/Assignment/AssignmentListTeacher';
+import AssignmentListStudent from './components/Assignment/AssignmentListStudent';
 import { toEmail } from './utils/authHelper';
 
 function App() {
@@ -42,6 +49,7 @@ function App() {
   const [userId, setUserId] = useState(null);
   const [students, setStudents] = useState([]);
   const [records, setRecords] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
@@ -68,6 +76,7 @@ function App() {
         setUserId(null);
         setStudents([]);
         setRecords([]);
+        setAssignments([]);
       }
       setLoading(false);
     });
@@ -79,12 +88,14 @@ function App() {
     if (!currentUser || !userRole || !userId) {
       setStudents([]);
       setRecords([]);
+      setAssignments([]);
       return;
     }
 
     setDataLoading(true);
     let unsubscribeStudents;
     let unsubscribeRecords;
+    let unsubscribeAssignments;
 
     if (userRole === 'teacher') {
       // 선생님: 학생 목록 구독
@@ -105,6 +116,13 @@ function App() {
         currentUser.email,
         (data) => setRecords(data),
         () => setRecords([])
+      );
+
+      // 선생님: 숙제 구독
+      unsubscribeAssignments = subscribeToAssignmentsByTeacher(
+        currentUser.email,
+        (data) => setAssignments(data),
+        () => setAssignments([])
       );
 
     } else {
@@ -132,11 +150,19 @@ function App() {
         (data) => setRecords(data),
         () => setRecords([])
       );
+
+      // 학생: 본인 숙제 구독
+      unsubscribeAssignments = subscribeToAssignmentsByStudent(
+        userId,
+        (data) => setAssignments(data),
+        () => setAssignments([])
+      );
     }
 
     return () => {
       if (unsubscribeStudents) unsubscribeStudents();
       if (unsubscribeRecords) unsubscribeRecords();
+      if (unsubscribeAssignments) unsubscribeAssignments();
     };
   }, [currentUser, userRole, userId]);
 
@@ -163,6 +189,7 @@ function App() {
       setSelectedStudent(null);
       setStudents([]);
       setRecords([]);
+      setAssignments([]);
       setUserRole(null);
       setUserId(null);
     } catch (err) {
@@ -270,7 +297,7 @@ function App() {
           {userRole === 'student' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
               <p className="text-sm text-blue-800">
-                👋 학생 모드입니다. 선생님이 등록한 나의 성적을 확인할 수 있습니다.
+                👋 학생 모드입니다. 선생님이 등록한 나의 성적과 숙제를 확인할 수 있습니다.
               </p>
             </div>
           )}
@@ -333,6 +360,24 @@ function App() {
                     성적 분석
                   </div>
                 </button>
+                <button
+                  onClick={() => setActiveTab('assignments')}
+                  className={`px-4 py-2 font-medium transition-colors ${
+                    activeTab === 'assignments'
+                      ? 'text-indigo-600 border-b-2 border-indigo-600'
+                      : 'text-gray-600 hover:text-gray-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <ClipboardList className="w-4 h-4" />
+                    숙제
+                    {userRole === 'student' && assignments.length > 0 && (
+                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                        {assignments.filter(a => !a.submissions?.find(s => s.studentId === userId)).length}
+                      </span>
+                    )}
+                  </div>
+                </button>
               </div>
 
               {/* Tab Content */}
@@ -347,10 +392,31 @@ function App() {
                     isTeacher={userRole === 'teacher'}
                   />
                 </>
-              ) : (
+              ) : activeTab === 'analysis' ? (
                 <div className="space-y-8">
                   <AnalysisDashboard student={selectedStudent} />
                   {userRole === 'teacher' && <BarChartAnalysis students={studentsWithRecords} />}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {userRole === 'teacher' ? (
+                    <>
+                      <AssignmentForm 
+                        teacherEmail={currentUser.email}
+                        students={students}
+                        onSuccess={() => {}}
+                      />
+                      <AssignmentListTeacher 
+                        assignments={assignments}
+                        students={students}
+                      />
+                    </>
+                  ) : (
+                    <AssignmentListStudent 
+                      assignments={assignments}
+                      studentId={userId}
+                    />
+                  )}
                 </div>
               )}
             </>
