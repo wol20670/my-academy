@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { BookOpen, TrendingUp, BarChart3, ClipboardList } from 'lucide-react';
+import { BookOpen, TrendingUp, BarChart3, ClipboardList, Menu, X, Users } from 'lucide-react';
 import { auth, db } from './firebase';
 import { signOut, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
@@ -54,6 +54,9 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('records');
+  
+  // 모바일 UI 상태
+  const [showStudentList, setShowStudentList] = useState(false);
 
   // 사용자 인증 상태 감지
   useEffect(() => {
@@ -266,7 +269,16 @@ function App() {
       ...student,
       records: studentRecords
     });
+    
+    // 모바일에서 학생 선택 시 목록 자동으로 닫기
+    setShowStudentList(false);
   };
+
+  // 미제출 숙제 개수 계산
+  const unsubmittedCount = useMemo(() => {
+    if (userRole !== 'student') return 0;
+    return assignments.filter(a => !a.submissions?.find(s => s.studentId === userId)).length;
+  }, [assignments, userId, userRole]);
 
   // Render
   if (loading) {
@@ -285,147 +297,165 @@ function App() {
         onLogout={handleLogout}
       />
 
-      <div className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Panel: Student Management */}
-        <div className="lg:col-span-1">
-          {userRole === 'teacher' && (
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
-              <StudentForm onAddStudent={handleAddStudent} />
-            </div>
-          )}
-          
-          {userRole === 'student' && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-              <p className="text-sm text-blue-800">
-                👋 학생 모드입니다. 선생님이 등록한 나의 성적과 숙제를 확인할 수 있습니다.
-              </p>
-            </div>
-          )}
+      <div className="max-w-7xl mx-auto p-2 sm:p-4">
+        {/* 모바일: 학생 목록 토글 버튼 (선생님만) */}
+        {userRole === 'teacher' && (
+          <button
+            onClick={() => setShowStudentList(!showStudentList)}
+            className="lg:hidden w-full mb-4 px-4 py-3 bg-indigo-600 text-white rounded-lg flex items-center justify-between shadow-md active:bg-indigo-700"
+          >
+            <span className="flex items-center gap-2 font-medium">
+              <Users className="w-5 h-5" />
+              학생 목록 {showStudentList ? '숨기기' : '보기'}
+            </span>
+            {showStudentList ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        )}
 
-          <StudentList
-            students={studentsWithRecords}
-            selectedStudent={selectedStudent}
-            onSelectStudent={handleSelectStudent}
-            onDeleteStudent={userRole === 'teacher' ? handleDeleteStudent : null}
-            isTeacher={userRole === 'teacher'}
-            currentUserEmail={currentUser?.email}
-            loading={dataLoading}
-          />
-        </div>
-
-        {/* Right Panel: Student Details */}
-        <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-6">
-          {selectedStudent ? (
-            <>
-              {/* Student Header */}
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-800">{selectedStudent.name}</h2>
-                  <p className="text-gray-600">{selectedStudent.grade}</p>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <TrendingUp className="w-4 h-4 text-indigo-600" />
-                  <span className="text-gray-600">평균 점수:</span>
-                  <span className="font-bold text-indigo-600">
-                    {calculateAverage(selectedStudent.records || [])}
-                  </span>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
+          {/* Left Panel: Student Management */}
+          <div className={`lg:col-span-1 ${showStudentList ? 'block' : 'hidden lg:block'}`}>
+            {userRole === 'teacher' && (
+              <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 mb-4">
+                <StudentForm onAddStudent={handleAddStudent} />
               </div>
-
-              {/* Tab Navigation */}
-              <div className="flex gap-2 mb-6 border-b">
-                <button
-                  onClick={() => setActiveTab('records')}
-                  className={`px-4 py-2 font-medium transition-colors ${
-                    activeTab === 'records'
-                      ? 'text-indigo-600 border-b-2 border-indigo-600'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="w-4 h-4" />
-                    학업 기록
-                  </div>
-                </button>
-                <button
-                  onClick={() => setActiveTab('analysis')}
-                  className={`px-4 py-2 font-medium transition-colors ${
-                    activeTab === 'analysis'
-                      ? 'text-indigo-600 border-b-2 border-indigo-600'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4" />
-                    성적 분석
-                  </div>
-                </button>
-                <button
-                  onClick={() => setActiveTab('assignments')}
-                  className={`px-4 py-2 font-medium transition-colors ${
-                    activeTab === 'assignments'
-                      ? 'text-indigo-600 border-b-2 border-indigo-600'
-                      : 'text-gray-600 hover:text-gray-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4" />
-                    숙제
-                    {userRole === 'student' && assignments.length > 0 && (
-                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                        {assignments.filter(a => !a.submissions?.find(s => s.studentId === userId)).length}
-                      </span>
-                    )}
-                  </div>
-                </button>
+            )}
+            
+            {userRole === 'student' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4">
+                <p className="text-xs sm:text-sm text-blue-800">
+                  👋 학생 모드입니다. 선생님이 등록한 나의 성적과 숙제를 확인할 수 있습니다.
+                </p>
               </div>
+            )}
 
-              {/* Tab Content */}
-              {activeTab === 'records' ? (
-                <>
-                  {userRole === 'teacher' && <RecordForm onAddRecord={handleAddRecord} />}
-                  
-                  <RecordList
-                    records={selectedStudent.records || []}
-                    onUpdateRecord={userRole === 'teacher' ? handleUpdateRecord : null}
-                    onDeleteRecord={userRole === 'teacher' ? handleDeleteRecord : null}
-                    isTeacher={userRole === 'teacher'}
-                  />
-                </>
-              ) : activeTab === 'analysis' ? (
-                <div className="space-y-8">
-                  <AnalysisDashboard student={selectedStudent} />
-                  {userRole === 'teacher' && <BarChartAnalysis students={studentsWithRecords} />}
+            <StudentList
+              students={studentsWithRecords}
+              selectedStudent={selectedStudent}
+              onSelectStudent={handleSelectStudent}
+              onDeleteStudent={userRole === 'teacher' ? handleDeleteStudent : null}
+              isTeacher={userRole === 'teacher'}
+              currentUserEmail={currentUser?.email}
+              loading={dataLoading}
+            />
+          </div>
+
+          {/* Right Panel: Student Details */}
+          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm p-3 sm:p-6">
+            {selectedStudent ? (
+              <>
+                {/* Student Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6 gap-3">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-800">{selectedStudent.name}</h2>
+                    <p className="text-sm sm:text-base text-gray-600">{selectedStudent.grade}</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm bg-indigo-50 px-3 py-2 rounded-lg">
+                    <TrendingUp className="w-4 h-4 text-indigo-600" />
+                    <span className="text-gray-600">평균 점수:</span>
+                    <span className="font-bold text-indigo-600">
+                      {calculateAverage(selectedStudent.records || [])}
+                    </span>
+                  </div>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  {userRole === 'teacher' ? (
+
+                {/* Tab Navigation - 모바일 최적화 */}
+                <div className="flex gap-1 sm:gap-2 mb-4 sm:mb-6 border-b overflow-x-auto pb-1">
+                  <button
+                    onClick={() => setActiveTab('records')}
+                    className={`flex-1 min-w-[100px] px-3 sm:px-4 py-2 sm:py-3 font-medium transition-colors rounded-t-lg ${
+                      activeTab === 'records'
+                        ? 'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600'
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <BookOpen className="w-4 h-4" />
+                      <span className="text-xs sm:text-sm">학업기록</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('analysis')}
+                    className={`flex-1 min-w-[100px] px-3 sm:px-4 py-2 sm:py-3 font-medium transition-colors rounded-t-lg ${
+                      activeTab === 'analysis'
+                        ? 'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600'
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <BarChart3 className="w-4 h-4" />
+                      <span className="text-xs sm:text-sm">성적분석</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('assignments')}
+                    className={`flex-1 min-w-[100px] px-3 sm:px-4 py-2 sm:py-3 font-medium transition-colors rounded-t-lg relative ${
+                      activeTab === 'assignments'
+                        ? 'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600'
+                        : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <ClipboardList className="w-4 h-4" />
+                      <span className="text-xs sm:text-sm">숙제</span>
+                      {userRole === 'student' && unsubmittedCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                          {unsubmittedCount}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                </div>
+
+                {/* Tab Content */}
+                <div className="overflow-y-auto max-h-[calc(100vh-280px)] sm:max-h-[calc(100vh-300px)]">
+                  {activeTab === 'records' ? (
                     <>
-                      <AssignmentForm 
-                        teacherEmail={currentUser.email}
-                        students={students}
-                        onSuccess={() => {}}
-                      />
-                      <AssignmentListTeacher 
-                        assignments={assignments}
-                        students={students}
+                      {userRole === 'teacher' && <RecordForm onAddRecord={handleAddRecord} />}
+                      
+                      <RecordList
+                        records={selectedStudent.records || []}
+                        onUpdateRecord={userRole === 'teacher' ? handleUpdateRecord : null}
+                        onDeleteRecord={userRole === 'teacher' ? handleDeleteRecord : null}
+                        isTeacher={userRole === 'teacher'}
                       />
                     </>
+                  ) : activeTab === 'analysis' ? (
+                    <div className="space-y-6 sm:space-y-8">
+                      <AnalysisDashboard student={selectedStudent} />
+                      {userRole === 'teacher' && <BarChartAnalysis students={studentsWithRecords} />}
+                    </div>
                   ) : (
-                    <AssignmentListStudent 
-                      assignments={assignments}
-                      studentId={userId}
-                    />
+                    <div className="space-y-4 sm:space-y-6">
+                      {userRole === 'teacher' ? (
+                        <>
+                          <AssignmentForm 
+                            teacherEmail={currentUser.email}
+                            students={students}
+                            onSuccess={() => {}}
+                          />
+                          <AssignmentListTeacher 
+                            assignments={assignments}
+                            students={students}
+                          />
+                        </>
+                      ) : (
+                        <AssignmentListStudent 
+                          assignments={assignments}
+                          studentId={userId}
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </>
-          ) : (
-            <div className="text-center py-20 text-gray-500">
-              <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p>학생을 선택해주세요</p>
-            </div>
-          )}
+              </>
+            ) : (
+              <div className="text-center py-12 sm:py-20 text-gray-500">
+                <BookOpen className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 opacity-50" />
+                <p className="text-sm sm:text-base">학생을 선택해주세요</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
